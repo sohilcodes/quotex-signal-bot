@@ -1,0 +1,37 @@
+//@version=5
+strategy("Quotex Signal Bot - RSI + EMA", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1)
+
+// ===== INPUTS =====
+ema_fast = input.int(9, "Fast EMA")
+ema_slow = input.int(21, "Slow EMA")
+rsi_period = input.int(14, "RSI Period")
+rsi_ob = input.int(70, "RSI Overbought")
+rsi_os = input.int(30, "RSI Oversold")
+webhook_url = input.string("https://your-bot.onrender.com/webhook", "Webhook URL")
+webhook_secret = input.string("your_secret_key_here", "Webhook Secret")
+trade_amount = input.float(1.0, "Trade Amount $")
+asset = input.string("EURUSD", "Asset Pair")
+
+// ===== INDICATORS =====
+ema9  = ta.ema(close, ema_fast)
+ema21 = ta.ema(close, ema_slow)
+rsi   = ta.rsi(close, rsi_period)
+
+plot(ema9,  "EMA 9",  color=color.blue,  linewidth=1)
+plot(ema21, "EMA 21", color=color.orange, linewidth=1)
+
+// ===== SIGNAL CONDITIONS =====
+// CALL: EMA9 crosses above EMA21 + RSI < 70 (not overbought)
+call_signal = ta.crossover(ema9, ema21) and rsi < rsi_ob
+
+// PUT: EMA9 crosses below EMA21 + RSI > 30 (not oversold)
+put_signal  = ta.crossunder(ema9, ema21) and rsi > rsi_os
+
+// ===== ALERTS (Webhook) =====
+if call_signal
+    strategy.entry("CALL", strategy.long)
+    alert('{"asset":"' + asset + '","direction":"call","duration":60,"amount":' + str.tostring(trade_amount) + ',"strategy":"RSI+EMA","confidence":"High","price":"' + str.tostring(close) + '"}', alert.freq_once_per_bar)
+
+if put_signal
+    strategy.entry("PUT", strategy.short)
+    alert('{"asset":"' + asset + '","direction":"put","duration":60,"amount":' + str.tostring(trade_amount) + ',"strategy":"RSI+EMA","confidence":"High","price":"' + str.tostring(close) + '"}', alert.freq_once_per_bar)
